@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arquitetura de Computadores - O Jogo</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --border: #bdc3c7;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary);
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .phase {
+            display: none;
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .active {
+            display: block;
+        }
+
+        .draggable-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .draggable {
+            background-color: var(--secondary);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: grab;
+            user-select: none;
+            font-weight: bold;
+        }
+
+        .draggable:active {
+            cursor: grabbing;
+        }
+
+        .dropzone {
+            min-height: 60px;
+            border: 2px dashed var(--border);
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f8f9fa;
+            margin: 10px;
+            position: relative;
+        }
+
+        .dropzone::before {
+            content: attr(data-label);
+            color: #7f8c8d;
+            position: absolute;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .dropzone .draggable {
+            z-index: 1;
+            margin: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Layout Fase 1 & 2 */
+        .cpu-box {
+            border: 3px solid var(--primary);
+            padding: 20px;
+            border-radius: 10px;
+            background: #ecf0f1;
+            margin: 20px auto;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .cpu-box h3 { margin-top: 0; }
+
+        /* Layout Específico Fase 2 (Von Neumann) */
+        .von-neumann-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 20px;
+            align-items: center;
+            margin-top: 30px;
+        }
+
+        .vn-cpu {
+            grid-column: 2;
+            grid-row: 1;
+            border: 3px dashed var(--primary);
+            padding: 15px;
+            background: #e8f4f8;
+        }
+
+        .vn-mem {
+            grid-column: 2;
+            grid-row: 2;
+        }
+
+        /* Layout Fase 3 */
+        .phase3-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .process-item {
+            background: #f1c40f;
+            color: #333;
+            margin: 5px;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: grab;
+            font-weight: bold;
+        }
+
+        .active-task-ui {
+            background: white;
+            padding: 15px;
+            border: 2px solid var(--secondary);
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background-color: #1a252f;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="phase1" class="phase active">
+        <h2>Fase 1: Estrutura Interna da CPU</h2>
+        <p>Arraste os componentes para os espaços corretos dentro do processador. O jogo reiniciará se houver erros na verificação!</p>
+        
+        <div class="draggable-container" id="p1-draggables">
+            <div class="draggable" draggable="true" id="p1-uc">Unidade de Controle</div>
+            <div class="draggable" draggable="true" id="p1-ula">ULA (ALU)</div>
+            <div class="draggable" draggable="true" id="p1-cache">Memória Cache</div>
+            <div class="draggable" draggable="true" id="p1-reg">Registradores</div>
+        </div>
+
+        <div class="cpu-box">
+            <h3>Processador</h3>
+            <div class="dropzone" data-label="Responsável pelas operações matemáticas e lógicas" data-expected="p1-ula" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            <div class="dropzone" data-label="Gerencia o fluxo de dados e instruções" data-expected="p1-uc" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            <div class="dropzone" data-label="Armazena dados temporários ultrarrápidos perto da ULA" data-expected="p1-reg" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            <div class="dropzone" data-label="Memória interna de acesso rápido (L1/L2/L3)" data-expected="p1-cache" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        </div>
+
+        <button onclick="checkPhase1()">Verificar</button>
+    </div>
+
+    <div id="phase2" class="phase">
+        <h2>Fase 2: Arquitetura de Von Neumann</h2>
+        <p>Monte a arquitetura encaixando os módulos correspondentes às conexões do diagrama.</p>
+
+        <div class="draggable-container" id="p2-draggables">
+            <div class="draggable" draggable="true" id="p2-in">Entrada</div>
+            <div class="draggable" draggable="true" id="p2-out">Saída</div>
+            <div class="draggable" draggable="true" id="p2-ula">Unidade Lógica e Aritmética</div>
+            <div class="draggable" draggable="true" id="p2-uc">Controle</div>
+            <div class="draggable" draggable="true" id="p2-mem">Memória</div>
+        </div>
+
+        <div class="von-neumann-grid">
+            <div class="dropzone" data-label="Vem do mundo exterior" data-expected="p2-in" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            
+            <div class="vn-cpu">
+                <h3>Unidade Central de Processamento (CPU)</h3>
+                <div class="dropzone" data-label="Processamento de Dados" data-expected="p2-ula" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                <div class="dropzone" data-label="Controle de Barramentos" data-expected="p2-uc" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            </div>
+
+            <div class="dropzone" data-label="Para o mundo exterior" data-expected="p2-out" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            
+            <div class="dropzone vn-mem" data-label="Armazenamento (Dados e Instruções)" data-expected="p2-mem" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        </div>
+
+        <button onclick="checkPhase2()">Verificar</button>
+    </div>
+
+    <div id="phase3" class="phase">
+        <h2>Fase 3: Execução de Processos</h2>
+        <p>Arraste um processo da fila para a CPU. Resolva a operação matemática, guarde variáveis na memória ou mande processos complexos para as threads. (Concluídos: <span id="p3-score">0</span>/5)</p>
+
+        <div class="phase3-grid">
+            <div>
+                <h3>Fila de Processos</h3>
+                <div id="process-queue" class="dropzone" ondrop="drop(event)" ondragover="allowDrop(event)" style="min-height: 200px; flex-direction: column;">
+                    </div>
+            </div>
+
+            <div>
+                <div class="cpu-box" style="margin: 0; min-height: 200px;">
+                    <h3>Processador (CPU)</h3>
+                    <div id="cpu-core" class="dropzone" data-label="Arraste o processo aqui" ondrop="dropProcess(event)" ondragover="allowDrop(event)" style="min-height: 100px;"></div>
+                    <div id="active-task-container"></div>
+                </div>
+            </div>
+
+            <div>
+                <h3>Sistema</h3>
+                <div id="memory-zone" class="dropzone" data-label="Memória (Solte Variáveis Aqui)" ondrop="dropTaskAction(event, 'memory')" ondragover="allowDrop(event)" style="background: #e8f4f8; margin-bottom: 20px;"></div>
+                <div id="thread-zone" class="dropzone" data-label="Fila de Threads (Solte Complexos Aqui)" ondrop="dropTaskAction(event, 'thread')" ondragover="allowDrop(event)" style="background: #fdf2e9;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="phaseEnd" class="phase">
+        <h2>Parabéns!</h2>
+        <p>Você completou todas as fases e entende os fundamentos do funcionamento de um processador!</p>
+        <button onclick="location.reload()">Jogar Novamente</button>
+    </div>
+
+    <script>
+        // --- FUNÇÕES GLOBAIS DE DRAG AND DROP ---
+        let draggedItem = null;
+
+        document.addEventListener('dragstart', function(e) {
+            if (e.target.classList.contains('draggable') || e.target.classList.contains('process-item')) {
+                draggedItem = e.target;
+                e.dataTransfer.setData('text/plain', e.target.id);
+                setTimeout(() => e.target.style.opacity = '0.5', 0);
+            }
+        });
+
+        document.addEventListener('dragend', function(e) {
+            if (e.target.classList.contains('draggable') || e.target.classList.contains('process-item')) {
+                setTimeout(() => e.target.style.opacity = '1', 0);
+                draggedItem = null;
+            }
+        });
+
+        function allowDrop(e) {
+            e.preventDefault();
+        }
+
+        function drop(e) {
+            e.preventDefault();
+            if (e.target.classList.contains('dropzone') && e.target.children.length === 0) {
+                e.target.appendChild(draggedItem);
+            }
+        }
+
+        // --- LÓGICA FASE 1 ---
+        function checkPhase1() {
+            const dropzones = document.querySelectorAll('#phase1 .dropzone');
+            let allFilled = true;
+            let allCorrect = true;
+
+            dropzones.forEach(zone => {
+                if (zone.children.length === 0) {
+                    allFilled = false;
+                } else {
+                    const child = zone.children[0];
+                    if (child.id !== zone.dataset.expected) {
+                        allCorrect = false;
+                    }
+                }
+            });
+
+            if (!allFilled) {
+                alert('Preencha todos os espaços antes de verificar!');
+                return;
+            }
+
+            if (allCorrect) {
+                alert('Excelente! Componentes internos identificados corretamente. Avançando para a Fase 2.');
+                document.getElementById('phase1').classList.remove('active');
+                document.getElementById('phase2').classList.add('active');
+            } else {
+                alert('Incorreto! Os componentes retornaram às posições originais. Tente novamente.');
+                resetPhase('phase1', 'p1-draggables');
+            }
+        }
+
+        // --- LÓGICA FASE 2 ---
+        function checkPhase2() {
+            const dropzones = document.querySelectorAll('#phase2 .dropzone');
+            let allFilled = true;
+            let allCorrect = true;
+
+            dropzones.forEach(zone => {
+                if (zone.children.length === 0) {
+                    allFilled = false;
+                } else {
+                    const child = zone.children[0];
+                    if (child.id !== zone.dataset.expected) {
+                        allCorrect = false;
+                    }
+                }
+            });
+
+            if (!allFilled) {
+                alert('Preencha todos os espaços antes de verificar!');
+                return;
+            }
+
+            if (allCorrect) {
+                alert('Perfeito! Arquitetura mapeada com sucesso. Iniciando Fase 3...');
+                document.getElementById('phase2').classList.remove('active');
+                document.getElementById('phase3').classList.add('active');
+                initPhase3();
+            } else {
+                alert('Incorreto! Conexões de Von Neumann erradas. Tente novamente.');
+                resetPhase('phase2', 'p2-draggables');
+            }
+        }
+
+        function resetPhase(phaseId, containerId) {
+            const container = document.getElementById(containerId);
+            const items = document.querySelectorAll(`#${phaseId} .draggable`);
+            items.forEach(item => container.appendChild(item));
+        }
+
+        // --- LÓGICA FASE 3 ---
+        let p3Score = 0;
+        let currentTaskType = null;
+        let expectedMathAnswer = 0;
+
+        const tasks = [
+            { id: 'proc1', type: 'math', label: 'Processo A (Matemática)', exp: '5 + 7', ans: 12 },
+            { id: 'proc2', type: 'assign', label: 'Processo B (Atribuição)', varName: 'x', varVal: '42' },
+            { id: 'proc3', type: 'complex', label: 'Processo C (Renderização 3D)' },
+            { id: 'proc4', type: 'math', label: 'Processo D (Matemática)', exp: '10 * 3', ans: 30 },
+            { id: 'proc5', type: 'assign', label: 'Processo E (Atribuição)', varName: 'nome', varVal: '"User"' }
+        ];
+
+        function initPhase3() {
+            const queue = document.getElementById('process-queue');
+            queue.innerHTML = '';
+            tasks.forEach(task => {
+                const div = document.createElement('div');
+                div.className = 'process-item';
+                div.id = task.id;
+                div.draggable = true;
+                div.textContent = task.label;
+                queue.appendChild(div);
+            });
+        }
+
+        function dropProcess(e) {
+            e.preventDefault();
+            const cpuCore = document.getElementById('cpu-core');
+            
+            // Só aceita se a CPU estiver vazia
+            if (cpuCore.children.length === 0 && draggedItem.classList.contains('process-item')) {
+                cpuCore.appendChild(draggedItem);
+                draggedItem.draggable = false; // Trava o processo na CPU
+                generateTaskUI(draggedItem.id);
+            }
+        }
+
+        function generateTaskUI(processId) {
+            const task = tasks.find(t => t.id === processId);
+            const container = document.getElementById('active-task-container');
+            container.innerHTML = '';
+            currentTaskType = task.type;
+
+            const uiBox = document.createElement('div');
+            uiBox.className = 'active-task-ui';
+
+            if (task.type === 'math') {
+                expectedMathAnswer = task.ans;
+                uiBox.innerHTML = `
+                    <p>Resolva a instrução da ULA:</p>
+                    <strong>${task.exp} = ?</strong><br><br>
+                    <input type="number" id="math-answer" style="padding: 5px; width: 60px;">
+                    <button onclick="checkMath()" style="margin-top:0; padding: 6px 12px;">Responder</button>
+                `;
+            } else if (task.type === 'assign') {
+                uiBox.innerHTML = `
+                    <p>Atribuição de Memória. Arraste a variável para a Memória:</p>
+                    <div class="draggable" draggable="true" id="var-${task.varName}" style="display:inline-block; background:var(--success);">
+                        Var: ${task.varName} = ${task.varVal}
+                    </div>
+                `;
+            } else if (task.type === 'complex') {
+                uiBox.innerHTML = `
+                    <p>Operação complexa detectada!</p>
+                    <p style="font-size: 12px;">Desvie este processamento pesado.</p>
+                    <div class="draggable" draggable="true" id="thread-task" style="display:inline-block; background:var(--danger);">
+                        Rotina: ${task.label}
+                    </div>
+                `;
+            }
+            container.appendChild(uiBox);
+        }
+
+        function completeProcess() {
+            document.getElementById('cpu-core').innerHTML = '';
+            document.getElementById('active-task-container').innerHTML = '';
+            p3Score++;
+            document.getElementById('p3-score').innerText = p3Score;
+            
+            if (p3Score >= 5) {
+                document.getElementById('phase3').classList.remove('active');
+                document.getElementById('phaseEnd').classList.add('active');
+            }
+        }
+
+        function checkMath() {
+            const val = parseInt(document.getElementById('math-answer').value);
+            if (val === expectedMathAnswer) {
+                completeProcess();
+            } else {
+                alert('Cálculo incorreto. A ULA retornou erro. Tente novamente.');
+            }
+        }
+
+        function dropTaskAction(e, expectedAction) {
+            e.preventDefault();
+            if (!draggedItem) return;
+
+            const isVar = draggedItem.id.startsWith('var-');
+            const isThread = draggedItem.id === 'thread-task';
+
+            if (expectedAction === 'memory' && isVar) {
+                e.target.appendChild(draggedItem);
+                draggedItem.draggable = false;
+                setTimeout(completeProcess, 500); // Conclui e limpa a CPU
+            } else if (expectedAction === 'thread' && isThread) {
+                e.target.appendChild(draggedItem);
+                draggedItem.draggable = false;
+                setTimeout(completeProcess, 500);
+            } else {
+                alert('Destino incorreto para este tipo de instrução!');
+            }
+        }
+    </script>
+</body>
+</html>
